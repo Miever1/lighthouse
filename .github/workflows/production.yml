@@ -2,7 +2,7 @@ name: Development
 
 on:
   schedule:
-    - cron: "2 * * * *"
+    - cron: "0 2 * * *"
 
 jobs:
   Development-Deploy:
