@@ -14,8 +14,8 @@ jobs:
         with:
           node-version: 18
       - uses: skiddph/actions-env@v1.0.2
-      # - run: npm install
-      # - run: node server.js
+      - run: npm install
+      - run: node server.js
 
       - uses: wlixcc/SFTP-Deploy-Action@v1.0 
         with:  
