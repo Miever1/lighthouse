@@ -14,20 +14,15 @@ jobs:
         with:
           node-version: 18
       - uses: skiddph/actions-env@v1.0.2
-        with:
-          prefix: ""
-        env:
-          APPLICATION_ID: '${{ secrets.APPLICATION_ID }}'
-          CLIENT_TOKEN: '${{ secrets.CLIENT_TOKEN }}'
-      - run: npm install
-      - run: node server.js
+      # - run: npm install
+      # - run: node server.js
 
       - uses: wlixcc/SFTP-Deploy-Action@v1.0 
         with:  
           username: 'ubuntu'   #ssh user name
           server: '${{ secrets.SERVER_IP }}' #引用之前创建好的secret
           ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }} #引用之前创建好的secret
-          local_path: './report.html'  # 对应我们项目build的文件夹路径
+          local_path: './server.js'  # 对应我们项目build的文件夹路径
           remote_path: '/home/ubuntu/lighthouse'
 
 
