@@ -1,9 +1,8 @@
 name: Development
 
 on:
-  push:
-    branches: 
-      - 'feature/**'
+  schedule:
+    - cron: "2 * * * *"
 
 jobs:
   Development-Deploy:
