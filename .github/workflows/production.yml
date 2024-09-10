@@ -3,6 +3,7 @@ name: Development
 on:
   schedule:
     - cron: "0 2 * * *"
+  workflow_dispatch:       # 添加手动触发
 
 jobs:
   Development-Deploy:
