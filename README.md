@@ -1,5 +1,13 @@
-# lighthouse
+# Lighthouse for Performance Monitoring
 
-The lighthouse is for monitoring the performance of my personal website to make me have awaring of code quality.
+Lighthouse is a tool I use to monitor the performance of my personal website. It helps me stay aware of the quality of my code and ensures that the site meets high performance standards.
 
-this is a test
+By regularly running Lighthouse audits, I can:
+- Identify performance bottlenecks
+- Improve accessibility
+- Ensure best practices
+- Optimize SEO
+
+You can view the detailed performance reports at [Lighthouse Report](https://lighthouse-report.miever.net/).
+
+This monitoring process keeps my website fast, user-friendly, and easy to maintain.
