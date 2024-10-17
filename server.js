@@ -4,9 +4,9 @@ import chromeLauncher from 'chrome-launcher';
 
 /**
  * Launch Chrome and run Lighthouse audit for the given URL.
- * This function primarily targets desktop users, as most of your website's traffic is from PC.
+ * This function simulates network conditions similar to developed countries' broadband speed.
  */
-async function runLighthouseAudit(url, isMobile = false) {
+async function runLighthouseAudit(url) {
   try {
     // Launch a headless Chrome instance
     const chrome = await chromeLauncher.launch({chromeFlags: ['--headless']});
@@ -16,22 +16,21 @@ async function runLighthouseAudit(url, isMobile = false) {
       logLevel: 'info',                  // Log level for detailed output
       output: 'html',                    // Output format (HTML report)
       port: chrome.port,                 // The Chrome port Lighthouse will use
-      formFactor: isMobile ? 'mobile' : 'desktop',  // Default to 'desktop' for PC testing
-      screenEmulation: isMobile 
-        ? {                               // Mobile screen emulation settings
-          mobile: true,                   
-          width: 360,                    
-          height: 640,                   
-          deviceScaleFactor: 2,           
-          disabled: false
-        } 
-        : {                               // Desktop screen emulation settings
-          mobile: false,                  
-          width: 1350,                    
-          height: 940,                    
-          deviceScaleFactor: 1,           
-          disabled: false
-        }
+      formFactor: 'desktop',             // Desktop as the primary testing environment
+      screenEmulation: {                 // Desktop screen emulation settings
+        mobile: false,                  
+        width: 1350,                    
+        height: 940,                    
+        deviceScaleFactor: 1,           
+        disabled: false
+      },
+      // Custom throttling to match developed countries' network conditions
+      throttling: {
+        rttMs: 20,                       // Network latency: 20 ms (similar to broadband networks)
+        throughputKbps: 300000,          // Download speed: 300 Mbps
+        uploadThroughputKbps: 50000,     // Upload speed: 50 Mbps
+        cpuSlowdownMultiplier: 1,        // No CPU slowdown
+      }
     };
 
     // Run the Lighthouse audit
@@ -41,7 +40,7 @@ async function runLighthouseAudit(url, isMobile = false) {
     const reportHtml = runnerResult.report;
     fs.writeFileSync('lighthouse-report.html', reportHtml);
 
-    // Log performance results for desktop (or mobile if specified)
+    // Log performance results for desktop
     console.log('Lighthouse audit completed for:', runnerResult.lhr.finalDisplayedUrl);
     console.log('Performance score:', runnerResult.lhr.categories.performance.score * 100);
 
@@ -54,5 +53,5 @@ async function runLighthouseAudit(url, isMobile = false) {
   }
 }
 
-// Run audit for your personal website, defaulting to desktop test
-runLighthouseAudit('https://miever.net');  // 'isMobile' is false by default, so it targets desktop
+// Run audit for your personal website with broadband network conditions
+runLighthouseAudit('https://miever.net');
