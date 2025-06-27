@@ -3,7 +3,7 @@ name: Development
 on:
   schedule:
     - cron: "0 2 * * *"
-  workflow_dispatch:       # 添加手动触发
+  workflow_dispatch:       # Add manual triggering
 
 jobs:
   Development-Deploy:
@@ -17,13 +17,23 @@ jobs:
       - run: npm install
       - run: node server.js
 
-      - uses: wlixcc/SFTP-Deploy-Action@v1.0 
+      - name: Deploy light mode lighthouse report
+        uses: wlixcc/SFTP-Deploy-Action@v1.0 
         with:  
-          username: 'ubuntu'   #ssh user name
-          server: '${{ secrets.SERVER_IP }}' #引用之前创建好的secret
-          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }} #引用之前创建好的secret
-          local_path: './lighthouse-report.html'  # 对应我们项目build的文件夹路径
+          username: 'ubuntu'
+          server: '${{ secrets.SERVER_IP }}'
+          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }} 
+          local_path: './lighthouse-report.html'
           remote_path: '/home/ubuntu/lighthouse'
           
+      - name: Deploy dark mode lighthouse report
+        uses: wlixcc/SFTP-Deploy-Action@v1.0 
+        with:  
+          username: 'ubuntu'
+          server: '${{ secrets.SERVER_IP }}'
+          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
+          local_path: './lighthouse-dark-report.html'
+          remote_path: '/home/ubuntu/lighthouse'
+
 
 

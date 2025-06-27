@@ -35,14 +35,52 @@ async function runLighthouseAudit(url) {
 
     // Run the Lighthouse audit
     const runnerResult = await lighthouse(url, options);
-
-    // Save the HTML report to a file
     const reportHtml = runnerResult.report;
-    fs.writeFileSync('lighthouse-report.html', reportHtml);
+    let darkModeReport = reportHtml;
+  
+    // Inject JavaScript code into HTML
+    const customScript = `
+      <script>
+        (function() {
+          function addLhDarkClass() {
+            const article = document.querySelector('article');
+            if (article && !article.classList.contains('lh-dark')) {
+              article.classList.add('lh-dark');
+              return true;
+            }
+            return false;
+          }
+          
+          if (addLhDarkClass()) return;
+          
+          const observer = new MutationObserver(function(mutations) {
+            if (addLhDarkClass()) {
+              observer.disconnect();
+            }
+          });
+          
+          observer.observe(document.documentElement, {
+            childList: true,
+            subtree: true
+          });
+          
+          const timeouts = [0, 100, 500, 1000];
+          timeouts.forEach(delay => {
+            setTimeout(() => {
+              if (addLhDarkClass()) {
+                observer.disconnect();
+              }
+            }, delay);
+          });
+        })();
+      </script>
+    `;
 
-    // Log performance results for desktop
-    console.log('Lighthouse audit completed for:', runnerResult.lhr.finalDisplayedUrl);
-    console.log('Performance score:', runnerResult.lhr.categories.performance.score * 100);
+    // Insert script into HTML head section
+    darkModeReport = reportHtml.replace('</head>', customScript + '</head>');
+    
+    fs.writeFileSync('lighthouse-report.html', reportHtml);
+    fs.writeFileSync('lighthouse-dark-report.html', darkModeReport);
 
     // Close Chrome instance
     await chrome.kill();
