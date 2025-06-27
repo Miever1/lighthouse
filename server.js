@@ -1,57 +1,111 @@
 import fs from 'fs';
 import lighthouse from 'lighthouse';
 import chromeLauncher from 'chrome-launcher';
+import express from 'express';
+import path from 'path';
 
-/**
- * Launch Chrome and run Lighthouse audit for the given URL.
- * This function simulates network conditions similar to developed countries' broadband speed.
- */
+// 允许的域名白名单
+const ALLOWED_DOMAINS = [
+  'https://miever.net',
+];
+
 async function runLighthouseAudit(url) {
   try {
-    // Launch a headless Chrome instance
     const chrome = await chromeLauncher.launch({chromeFlags: ['--headless']});
 
-    // Define Lighthouse options
     const options = {
-      logLevel: 'info',                  // Log level for detailed output
-      output: 'html',                    // Output format (HTML report)
-      port: chrome.port,                 // The Chrome port Lighthouse will use
-      formFactor: 'desktop',             // Desktop as the primary testing environment
-      screenEmulation: {                 // Desktop screen emulation settings
-        mobile: false,                  
-        width: 1350,                    
-        height: 940,                    
-        deviceScaleFactor: 1,           
+      logLevel: 'info',
+      output: 'html',
+      port: chrome.port,
+      formFactor: 'desktop',
+      screenEmulation: {
+        mobile: false,
+        width: 1350,
+        height: 940,
+        deviceScaleFactor: 1,
         disabled: false
       },
-      // Custom throttling to match developed countries' network conditions
       throttling: {
-        rttMs: 20,                       // Network latency: 20 ms (similar to broadband networks)
-        throughputKbps: 300000,          // Download speed: 300 Mbps
-        uploadThroughputKbps: 50000,     // Upload speed: 50 Mbps
-        cpuSlowdownMultiplier: 1,        // No CPU slowdown
+        rttMs: 20,
+        throughputKbps: 300000,
+        uploadThroughputKbps: 50000,
+        cpuSlowdownMultiplier: 1,
       }
     };
 
-    // Run the Lighthouse audit
     const runnerResult = await lighthouse(url, options);
+    let reportHtml = runnerResult.report;
 
-    // Save the HTML report to a file
-    const reportHtml = runnerResult.report;
+    // 修改HTML以添加域名验证
+    reportHtml = addDomainValidation(reportHtml);
+    
     fs.writeFileSync('lighthouse-dark-report.html', reportHtml);
 
-    // Log performance results for desktop
     console.log('Lighthouse audit completed for:', runnerResult.lhr.finalDisplayedUrl);
     console.log('Performance score:', runnerResult.lhr.categories.performance.score * 100);
 
-    // Close Chrome instance
     await chrome.kill();
 
   } catch (error) {
-    // Handle errors that occur during Lighthouse execution
     console.error('Error during Lighthouse audit:', error);
   }
 }
 
-// Run audit for your personal website with broadband network conditions
+function addDomainValidation(html) {
+  const validationScript = `
+    <script>
+      // 检查父窗口域名
+      function validateParentDomain() {
+        try {
+          const allowedDomains = ${JSON.stringify(ALLOWED_DOMAINS)};
+          
+          // 如果不在iframe中，允许直接访问
+          if (window === window.top) {
+            return true;
+          }
+          
+          // 检查父窗口的域名
+          const parentOrigin = document.referrer;
+          const isAllowed = allowedDomains.some(domain => 
+            parentOrigin.startsWith(domain)
+          );
+          
+          if (!isAllowed) {
+            document.body.innerHTML = '<h1>访问被拒绝</h1><p>此页面只能从授权域名访问。</p>';
+            return false;
+          }
+          
+          return true;
+        } catch (error) {
+          console.error('Domain validation error:', error);
+          return false;
+        }
+      }
+      
+      // 页面加载时验证
+      window.addEventListener('load', validateParentDomain);
+    </script>
+  `;
+
+  return html.replace('</head>', validationScript + '</head>');
+}
+
+// Express服务器配置
+const app = express();
+
+app.get('/lighthouse-report', (req, res) => {
+  // 构建CSP头部，只允许特定域名嵌入
+  const frameAncestors = ALLOWED_DOMAINS.join(' ');
+  const cspHeader = `frame-ancestors 'self' ${frameAncestors}`;
+  
+  res.setHeader('Content-Security-Policy', cspHeader);
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN'); // 兼容老浏览器
+  
+  res.sendFile(path.join(__dirname, 'lighthouse-dark-report.html'));
+});
+
+app.listen(3000, () => {
+  console.log('Server running on port 3000');
+});
+
 runLighthouseAudit('https://miever.net');
