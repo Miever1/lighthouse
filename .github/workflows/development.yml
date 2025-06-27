@@ -31,7 +31,7 @@ jobs:
         with:  
           username: 'ubuntu'
           server: '${{ secrets.SERVER_IP }}'
-          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}'
+          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
           local_path: './lighthouse-dark-report.html'
           remote_path: '/home/ubuntu/lighthouse'
 
