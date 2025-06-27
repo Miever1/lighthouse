@@ -63,85 +63,170 @@ async function runLighthouseAudit(url, allowedDomains = []) {
  * Add domain restriction to the HTML report
  */
 function addDomainRestriction(htmlContent, allowedDomains) {
-  // Create frame-ancestors CSP directive
-  const frameAncestors = allowedDomains.length > 0 
-    ? allowedDomains.join(' ') 
-    : "'none'";
-
-  // Create domain validation script
+  // 创建改进的域名验证脚本
   const domainValidationScript = `
     <script>
       (function() {
         const allowedDomains = ${JSON.stringify(allowedDomains)};
         
-        function validateDomain() {
+        function normalizeUrl(url) {
           try {
-            // Check if running in iframe
-            if (window !== window.top) {
-              const parentHost = window.top.location.host;
-              const isAllowed = allowedDomains.some(domain => {
-                // Remove protocol and trailing slash from domain
-                const cleanDomain = domain.replace(/^https?:\\/\\//, '').replace(/\\/$/, '');
-                return parentHost === cleanDomain || parentHost.endsWith('.' + cleanDomain);
-              });
-              
-              if (!isAllowed) {
-                document.body.innerHTML = \`
-                  <div style="display: flex; justify-content: center; align-items: center; height: 100vh; font-family: Arial, sans-serif;">
-                    <div style="text-align: center; padding: 40px; border: 2px solid #ff4444; border-radius: 10px; background-color: #fff5f5;">
-                      <h2 style="color: #cc0000; margin-bottom: 20px;">访问被拒绝</h2>
-                      <p style="color: #666; margin-bottom: 10px;">此报告只能从以下授权域名访问：</p>
-                      <ul style="color: #333; text-align: left; display: inline-block;">
-                        \${allowedDomains.map(domain => '<li>' + domain + '</li>').join('')}
-                      </ul>
-                      <p style="color: #999; font-size: 12px; margin-top: 20px;">当前访问域名未在白名单中</p>
-                    </div>
-                  </div>
-                \`;
-                return;
-              }
-            }
+            const urlObj = new URL(url);
+            return {
+              protocol: urlObj.protocol,
+              hostname: urlObj.hostname,
+              port: urlObj.port || (urlObj.protocol === 'https:' ? '443' : '80'),
+              host: urlObj.host,
+              origin: urlObj.origin
+            };
           } catch (e) {
-            // Cross-origin access blocked - this is expected for iframe from different domain
-            if (window !== window.top && allowedDomains.length > 0) {
-              // If we can't access parent location and domains are restricted, block access
-              document.body.innerHTML = \`
-                <div style="display: flex; justify-content: center; align-items: center; height: 100vh; font-family: Arial, sans-serif;">
-                  <div style="text-align: center; padding: 40px; border: 2px solid #ff4444; border-radius: 10px; background-color: #fff5f5;">
-                    <h2 style="color: #cc0000; margin-bottom: 20px;">访问被拒绝</h2>
-                    <p style="color: #666;">此报告仅限授权域名访问</p>
-                  </div>
-                </div>
-              \`;
-            }
+            return null;
           }
         }
         
-        // Validate domain on load
+        function isAllowedDomain(testUrl) {
+          if (!testUrl) return false;
+          
+          const test = normalizeUrl(testUrl);
+          if (!test) return false;
+          
+          return allowedDomains.some(allowedDomain => {
+            const allowed = normalizeUrl(allowedDomain);
+            if (!allowed) return false;
+            
+            // 精确匹配
+            if (test.origin === allowed.origin) {
+              return true;
+            }
+            
+            // 处理localhost和127.0.0.1的等价性
+            const isLocalhost = (hostname) => 
+              hostname === 'localhost' || hostname === '127.0.0.1';
+            
+            if (isLocalhost(test.hostname) && isLocalhost(allowed.hostname)) {
+              return test.port === allowed.port && test.protocol === allowed.protocol;
+            }
+            
+            return false;
+          });
+        }
+        
+        function validateDomain() {
+          let parentUrl = null;
+          let isInIframe = window !== window.top;
+          
+          try {
+            if (isInIframe) {
+              // 尝试获取父窗口URL
+              parentUrl = window.top.location.href;
+              console.log('Parent URL detected:', parentUrl);
+            } else {
+              // 直接访问时检查当前URL
+              parentUrl = window.location.href;
+              console.log('Direct access URL:', parentUrl);
+            }
+          } catch (e) {
+            // 跨域访问被阻止，尝试使用document.referrer
+            if (isInIframe) {
+              parentUrl = document.referrer;
+              console.log('Using referrer as parent URL:', parentUrl);
+            }
+          }
+          
+          // 如果没有域名限制，允许访问
+          if (allowedDomains.length === 0) {
+            console.log('No domain restrictions, access allowed');
+            return;
+          }
+          
+          // 检查是否允许访问
+          if (parentUrl && isAllowedDomain(parentUrl)) {
+            console.log('Access granted for:', parentUrl);
+            return;
+          }
+          
+          // 如果无法确定父URL但在iframe中，且有域名限制，则拒绝访问
+          if (isInIframe && !parentUrl) {
+            console.log('Cannot determine parent URL, access denied');
+            showAccessDenied('无法验证父窗口域名');
+            return;
+          }
+          
+          // 明确拒绝访问
+          console.log('Access denied for:', parentUrl);
+          showAccessDenied(parentUrl);
+        }
+        
+        function showAccessDenied(attemptedUrl) {
+          document.body.innerHTML = \`
+            <div style="display: flex; justify-content: center; align-items: center; height: 100vh; font-family: Arial, sans-serif; background-color: #f7fafc;">
+              <div style="text-align: center; padding: 40px; border: 2px solid #e53e3e; border-radius: 12px; background-color: #fed7d7; max-width: 700px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+                <h2 style="color: #c53030; margin-bottom: 20px; font-size: 24px;">🚫 访问被拒绝</h2>
+                <p style="color: #2d3748; margin-bottom: 15px; font-size: 16px;">此 Lighthouse 报告只能从以下授权域名访问：</p>
+                
+                <div style="background-color: #edf2f7; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: left;">
+                  <h4 style="margin-top: 0; color: #2d3748; font-size: 16px;">✅ 允许的域名:</h4>
+                  <ul style="color: #4a5568; margin: 10px 0; padding-left: 20px; line-height: 1.8;">
+                    \${allowedDomains.map(domain => \`
+                      <li style="margin: 8px 0;">
+                        <code style="background-color: #e2e8f0; padding: 4px 8px; border-radius: 4px; font-size: 14px; font-family: 'Courier New', monospace;">
+                          \${domain}
+                        </code>
+                      </li>
+                    \`).join('')}
+                  </ul>
+                </div>
+                
+                \${attemptedUrl ? \`
+                  <div style="background-color: #fef5e7; padding: 15px; border-radius: 8px; border-left: 4px solid #ed8936; margin: 15px 0;">
+                    <p style="color: #744210; font-size: 14px; margin: 0;">
+                      <strong>🔍 尝试访问的地址:</strong><br>
+                      <code style="background-color: #fed7d7; padding: 2px 6px; border-radius: 4px; font-size: 12px; word-break: break-all;">
+                        \${attemptedUrl}
+                      </code>
+                    </p>
+                  </div>
+                \` : ''}
+                
+                <div style="background-color: #e6fffa; padding: 15px; border-radius: 8px; border-left: 4px solid #38b2ac; margin: 15px 0;">
+                  <p style="color: #234e52; font-size: 14px; margin: 0;">
+                    <strong>💡 解决方案:</strong><br>
+                    • 确保从正确的域名访问此报告<br>
+                    • 检查端口号是否匹配（如 :8000）<br>
+                    • 如果是开发环境，请更新 allowedDomains 配置
+                  </p>
+                </div>
+                
+                <p style="color: #718096; font-size: 12px; margin-top: 20px;">
+                  如果问题持续存在，请联系系统管理员或检查域名配置。
+                </p>
+              </div>
+            </div>
+          \`;
+        }
+        
+        // 页面加载完成后验证域名
         if (document.readyState === 'loading') {
           document.addEventListener('DOMContentLoaded', validateDomain);
         } else {
           validateDomain();
         }
+        
+        // 也在窗口加载完成后再次验证（确保所有资源加载完毕）
+        window.addEventListener('load', validateDomain);
       })();
     </script>
   `;
 
-  // Add CSP meta tag and domain validation script to head
+  // 只添加X-Frame-Options和验证脚本，移除无效的CSP meta标签
   const securityHeaders = `
-    <meta http-equiv="Content-Security-Policy" content="frame-ancestors ${frameAncestors};">
     <meta http-equiv="X-Frame-Options" content="${allowedDomains.length > 0 ? 'SAMEORIGIN' : 'DENY'}">
     ${domainValidationScript}
   `;
 
-  // Insert security headers after the opening <head> tag
-  const modifiedHtml = htmlContent.replace(
-    '<head>',
-    `<head>${securityHeaders}`
-  );
-
-  return modifiedHtml;
+  return htmlContent.replace('<head>', `<head>${securityHeaders}`);
 }
+
 
 // 配置允许访问的域名列表
 const allowedDomains = [
