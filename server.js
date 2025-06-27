@@ -147,7 +147,8 @@ function addDomainRestriction(htmlContent, allowedDomains) {
 const allowedDomains = [
   'https://miever.net',
   'https://www.miever.com',
-  'https://localhost:8000',
+  'http://localhost:8000',
+  'http://127.0.0.1:8000'
 ];
 
 // Run audit for your personal website with domain restrictions
