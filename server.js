@@ -38,7 +38,7 @@ async function runLighthouseAudit(url) {
 
     // Save the HTML report to a file
     const reportHtml = runnerResult.report;
-    fs.writeFileSync('lighthouse-report.html', reportHtml);
+    fs.writeFileSync('lighthouse-dark-report.html', reportHtml);
 
     // Log performance results for desktop
     console.log('Lighthouse audit completed for:', runnerResult.lhr.finalDisplayedUrl);
