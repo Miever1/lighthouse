@@ -3,6 +3,9 @@ name: Development
 on:
   schedule:
     - cron: "0 2 * * *"
+  push:
+    branches:
+      - 'feature/**'
   workflow_dispatch:       # 添加手动触发
 
 jobs:
