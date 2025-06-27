@@ -1,0 +1,29 @@
+name: Development
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:       # 手动触发
+  push:
+    branches:
+      - 'feature/**'       # 匹配所有以 feature/ 开头的分支
+
+jobs:
+  Development-Deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2-beta
+        with:
+          node-version: 18
+      - uses: skiddph/actions-env@v1.0.2
+      - run: npm install
+      - run: node server.js
+
+      - uses: wlixcc/SFTP-Deploy-Action@v1.0 
+        with:  
+          username: 'ubuntu'   #ssh user name
+          server: '${{ secrets.SERVER_IP }}' #引用之前创建好的secret
+          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }} #引用之前创建好的secret
+          local_path: './lighthouse-dark-report.html'  # 对应我们项目build的文件夹路径
+          remote_path: '/home/ubuntu/lighthouse'
