@@ -20,10 +20,21 @@ jobs:
       - run: npm install
       - run: node server.js
 
+      # 检查文件是否生成成功
+      - name: Check generated file
+        run: |
+          if [ -f "./lighthouse-dark-report.html" ]; then
+            echo "Lighthouse report generated successfully"
+            ls -la lighthouse-dark-report.html
+          else
+            echo "Error: lighthouse-dark-report.html not found"
+            exit 1
+          fi
+
       - uses: wlixcc/SFTP-Deploy-Action@v1.0 
         with:  
-          username: 'ubuntu'   #ssh user name
-          server: '${{ secrets.SERVER_IP }}' #引用之前创建好的secret
-          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }} #引用之前创建好的secret
-          local_path: './lighthouse-dark-report.html'  # 对应我们项目build的文件夹路径
-          remote_path: '/home/ubuntu/lighthouse'
+          username: 'ubuntu'
+          server: '${{ secrets.SERVER_IP }}'
+          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
+          local_path: './lighthouse-dark-report.html'  # 注意：你的脚本生成的是这个文件名
+          remote_path: '/home/ubuntu/lighthouse/'      # 注意：末尾加斜杠表示目录
